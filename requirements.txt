@@ -3,5 +3,5 @@ torchvision
 transformers
 rasterio
 opencv-python
-numpy
+numpy 
 tqdm
