@@ -1,0 +1,7 @@
+torch
+torchvision
+transformers
+rasterio
+opencv-python
+numpy
+tqdm
