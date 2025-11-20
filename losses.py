@@ -1,5 +1,5 @@
 
-class DiceLoss(nn.Module):
+class DiceLoss(nn.Module): 
     def __init__(self, smooth=1e-6, ignore_index=255):
         super(DiceLoss, self).__init__()
         self.smooth = smooth
