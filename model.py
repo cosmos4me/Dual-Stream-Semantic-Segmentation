@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from transformers import SegformerForSemanticSegmentation
 from losses import DiceLoss, FocalLoss, LovaszLoss
 from config import DEVICE
-
+ 
 # ================= Utils =================
 def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
     if drop_prob == 0. or not training: return x
