@@ -60,7 +60,7 @@ Standardized data loader structure required for `DualStreamDataset`:
 Key hyperparameters are defined in the main script:
 
 ```python
-LEARNING_RATE = 3.0e-4
+LEARNING_RATE = 3.0e-4 # Decayed to 1.0e-6 by Epoch 40
 BATCH_SIZE = 4
 EPOCHS = 40
 TARGET_SIZE = 512
