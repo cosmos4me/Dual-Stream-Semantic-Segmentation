@@ -1,63 +1,99 @@
-# 🛰️ DualStream-DFormer
+# DualStream-DFormer: Multi-Modal Semantic Segmentation
 
-**DualStream-DFormer** is a PyTorch-based deep learning model designed for **Multi-Modal Semantic Segmentation**. It effectively fuses **Satellite Imagery (Vision)** and **Air Quality Data (Auxiliary)** to improve segmentation performance on complex ground targets.
+[![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-orange?style=flat-square&logo=huggingface)](https://huggingface.co/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+**DualStream-DFormer**는 고해상도 위성 이미지(Vision)와 대기 오염 데이터(Air Quality)를 융합하여 정밀한 영역 분할(Semantic Segmentation)을 수행하는 하이브리드 딥러닝 모델입니다. 
+
+서로 다른 해상도와 특성을 가진 이종 데이터를 효과적으로 결합하기 위해 **SegFormer**와 **ConvNeXt**를 기반으로 한 듀얼 스트림 구조를 채택하였으며, **FiLM**, **Gating**, **Cross-Attention** 메커니즘을 통해 특징을 단계별로 융합합니다.
 
 ## 🌟 Key Features
 
-* **Hybrid Dual-Encoder Architecture:**
-    * **Vision Stream:** Uses **SegFormer (B1)** adapted for 4-channel satellite input. 
+* **Dual-Stream Architecture**:
+    * **Vision Stream**: `SegFormer-B1` (Pretrained)을 사용하여 시각적 특징 추출
+    * **Air Quality Stream**: Custom `ConvNeXt` Encoder를 사용하여 48채널 대기 데이터 처리
+* **Advanced Feature Fusion**:
+    * **Low-Level**: `FiLM (Feature-wise Linear Modulation)` + `Dynamic Fusion Gate`
+    * **High-Level**: `Cross-Attention Block` (Global Context Modeling)
+* **Robust Decoder Design**:
+    * **ASPP (Atrous Spatial Pyramid Pooling)**: 멀티 스케일 문맥 포착
+    * **Attention Gates**: Skip Connection 정보의 선택적 융합
+    * **ConvNeXt Refinement**: 디코딩 단계에서의 세밀한 특징 복원
+* **Loss Function Strategy**:
+    * **Hybrid Loss**: Focal Loss + Lovasz-Softmax Loss (Class Imbalance 해결)
+    * **Deep Supervision**: 중간 레이어(Auxiliary Heads)에서도 손실을 계산하여 학습 안정성 확보
 
-[Image of Transformer Encoder Architecture]
+## 🏗️ Model Architecture
 
-    * **Air Quality Stream:** Uses a custom **ConvNeXt-based** encoder for 48-channel environmental data.
-* **Advanced Fusion Modules:**
-    * **Low-Level:** FiLM (Feature-wise Linear Modulation) + Dynamic Gated Fusion.
-    * **High-Level:** Cross-Attention mechanisms for semantic feature alignment.
-* **Robust Training Strategy:**
-    * **2-Stage Training:** Automatically handles **Frozen Encoder** warm-up followed by **Full Fine-tuning**.
-    * **Differential Learning Rates:** Applies different learning rates to Encoders, Fusion modules, and Decoders.
-* **Loss Function:** Optimizes using a weighted combination of **Focal Loss** and **Lovasz Softmax Loss**.
+| Stage | Interaction Method | Purpose |
+| :--- | :--- | :--- |
+| **Encoder** | SegFormer (Vis) + ConvNeXt (Air) | 각각의 모달리티에서 계층적 특징 추출 |
+| **Stage 1-2** | **FiLM + Gating** | 채널별 특징 변조 및 지역적 정보 융합 |
+| **Stage 3-4** | **Cross-Attention** | 전역적 문맥 정보 교환 및 상호 연관성 학습 |
+| **Decoder** | **ASPP + Attention Gate** | 경계면 정제 및 해상도 복원 |
 
-## 📂 Project Structure
+## 📂 Directory Structure
 
-| File | Description |
-| :--- | :--- |
-| `config.py` | **Configuration entry point.** Contains paths, hyperparameters, and device settings. |
-| `model.py` | Implementation of the DualStream architecture (Encoders, Fusion, Decoder). |
-| `dataset.py` | Custom `DualStreamDataset` for loading satellite and air quality GeoTIFFs. |
-| `losses.py` | Custom loss implementations (`FocalLoss`, `LovaszLoss`, `DiceLoss`). |
-| `train.py` | Main training script handling the 2-stage strategy and validation. |
+데이터셋은 `DualStreamDataset` 클래스에 맞춰 다음과 같은 구조로 구성되어야 합니다.
 
-## 🚀 Quick Start
+```plaintext
+/content/
+├── ts_sn/      # Train Images (Satellite)
+├── tl_sn/      # Train Labels (Masks)
+├── t_ap/       # Train Air Pollution Data (TIF)
+├── t_gems/     # Train GEMS Data (TIF)
+├── vs_sn/      # Validation Images
+├── vl_sn/      # Validation Labels
+├── v_ap/       # Validation Air Pollution Data
+└── v_gems/     # Validation GEMS Data
 
-### 1. Installation
-Clone the repository and install the required dependencies. It is recommended to use a virtual environment (e.g., Conda).
+⚙️ Configuration
+LEARNING_RATE = 3.0e-4
+BATCH_SIZE = 4
+EPOCHS = 40
+TARGET_SIZE = 512
+NUM_CLASSES = 2 (Background / Target)
 
-```bash
-pip install -r requirements.txt
+# Loss Weights
+FOCAL_WEIGHT = 0.5
+LOVASZ_WEIGHT = 0.5
+AUX_LOSS_WEIGHTS = {'final': 1.0, 'f2': 0.3, 'f3': 0.15}
 
-### 2. Data Preparation
-Organize your dataset directories. The model expects Satellite Images, Labels, Air Pollution Maps, and GEMS Data.
+🚀 Usage
+1. Requirements
+pip install torch torchvision rasterio opencv-python transformers tqdm
 
-Recommended structure:
+2. Training
+from torch.utils.data import DataLoader
+import torch.optim as optim
 
-/data_root/
-├── ts_sn/   # Train Satellite Images
-├── tl_sn/   # Train Labels
-├── t_ap/    # Train Air Pollution (.tif)
-├── t_gems/  # Train GEMS (.tif)
-├── vs_sn/   # Validation Satellite Images
-├── vl_sn/   # Validation Labels
-└── ...
+# 디바이스 설정
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-3. Configuration
-Crucial Step: Open config.py and modify the paths to match your environment.
+# 데이터셋 및 로더
+train_dataset = DualStreamDataset(TR_IMG_DIR, TR_LAB_DIR, TR_AP_DIR, TR_GEMS_DIR)
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
 
-Update Paths: Change TR_IMG_DIR, VL_IMG_DIR, CHECKPOINT_SAVE_PATH, etc.
+# 모델 초기화
+model = DualStream_DFormer_Model(num_classes=1).to(device)
 
-Hyperparameters: Adjust BATCH_SIZE, EPOCHS, and LEARNING_RATE if needed.
+# 옵티마이저 및 스케일러
+optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+scaler = torch.cuda.amp.GradScaler()
 
-4. Training
-Run the main training script. The code automatically manages the 2-stage training process (freezing encoders initially, then unfreezing).
-
-
+# 학습 루프
+model.train()
+for epoch in range(EPOCHS):
+    loss = train_one_epoch(model, train_loader, optimizer, scaler, device)
+    print(f"Epoch {epoch+1} Loss: {loss:.4f}")
+    
+    # 체크포인트 저장
+    if (epoch + 1) % 5 == 0:
+        torch.save(model.state_dict(), f"{CHECKPOINT}_ep{epoch+1}.pth")
+3. Inference
+model.eval()
+with torch.no_grad():
+    output = model(pixel_values=test_img, air_values=test_air)
+    logits = output['logits']
+    prediction = (torch.sigmoid(logits) > 0.5).long()
