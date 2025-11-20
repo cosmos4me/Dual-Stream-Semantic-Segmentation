@@ -1,1 +1,1 @@
-# Dual-Stream-Vision-Air-Quality-Semantic-Segmentation
+# Dual-Stream-Semantic-Segmentation
