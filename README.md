@@ -1,10 +1,6 @@
 # DualStream-DFormer: Multi-Modal Semantic Segmentation
 
-[![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Transformers](https://img.shields.io/badge/HuggingFace-Transformers-orange?style=flat-square&logo=huggingface)](https://huggingface.co/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-
-**DualStream-DFormer**는 고해상도 위성 이미지(Vision)와 대기 오염 데이터(Air Quality)를 융합하여 정밀한 영역 분할(Semantic Segmentation)을 수행하는 하이브리드 딥러닝 모델입니다. 
+**DualStream-DFormer**는 고해상도 위성 이미지(Vision)와 대기 오염 데이터(Air Quality)를 융합하여 정밀한 영역 분할(Semantic Segmentation)을 수행하는 하이브리드 딥러닝 모델입니다.
 
 서로 다른 해상도와 특성을 가진 이종 데이터를 효과적으로 결합하기 위해 **SegFormer**와 **ConvNeXt**를 기반으로 한 듀얼 스트림 구조를 채택하였으며, **FiLM**, **Gating**, **Cross-Attention** 메커니즘을 통해 특징을 단계별로 융합합니다.
 
@@ -47,8 +43,13 @@
 ├── vl_sn/      # Validation Labels
 ├── v_ap/       # Validation Air Pollution Data
 └── v_gems/     # Validation GEMS Data
+```
 
-⚙️ Configuration
+## ⚙️ Configuration
+
+주요 하이퍼파라미터는 코드 최상단에서 설정 가능합니다.
+
+```python
 LEARNING_RATE = 3.0e-4
 BATCH_SIZE = 4
 EPOCHS = 40
@@ -59,12 +60,23 @@ NUM_CLASSES = 2 (Background / Target)
 FOCAL_WEIGHT = 0.5
 LOVASZ_WEIGHT = 0.5
 AUX_LOSS_WEIGHTS = {'final': 1.0, 'f2': 0.3, 'f3': 0.15}
+```
 
-🚀 Usage
-1. Requirements
+## 🚀 Usage
+
+### 1. Requirements
+
+필요한 라이브러리를 설치합니다.
+
+```bash
 pip install torch torchvision rasterio opencv-python transformers tqdm
+```
 
-2. Training
+### 2. Training
+
+모델 학습을 시작하는 기본 코드 예시입니다.
+
+```python
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
@@ -91,9 +103,26 @@ for epoch in range(EPOCHS):
     # 체크포인트 저장
     if (epoch + 1) % 5 == 0:
         torch.save(model.state_dict(), f"{CHECKPOINT}_ep{epoch+1}.pth")
-3. Inference
+```
+
+### 3. Inference
+
+학습된 모델을 사용하여 추론을 수행합니다.
+
+```python
 model.eval()
 with torch.no_grad():
     output = model(pixel_values=test_img, air_values=test_air)
     logits = output['logits']
     prediction = (torch.sigmoid(logits) > 0.5).long()
+```
+
+## 🧩 Technical Details
+
+### Loss Functions
+* **Focal Loss**: 데이터 불균형이 심한 세그멘테이션 작업에서 어려운 샘플(Hard negatives)에 더 큰 가중치를 부여합니다.
+* **Lovasz Loss**: IoU(Intersection over Union) 지표를 직접 최적화하도록 설계된 손실 함수입니다.
+
+### Data Preprocessing
+* **Vision**: 0~1 사이로 정규화 (Rescaling), 512x512 리사이즈.
+* **Air Quality**: GEMS 및 오염물질 데이터를 채널 방향으로 결합(Concatenate) 후 정규화, 64x64로 리사이즈.
