@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader, Subset
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-# 우리가 만든 모듈들
 from config import *
 from dataset import DualStreamDataset, collate_fn
 from model import DualStream_DFormer_Model
@@ -82,7 +81,6 @@ def evaluate(model, val_loader, metrics_dict, device):
 
         total_loss += loss.item()
         
-        # 메트릭 업데이트
         probs = torch.sigmoid(logits)
         preds = (probs > 0.5).long()
         for metric in metrics_dict.values(): 
@@ -216,7 +214,6 @@ def main():
     }).to(DEVICE)
 
     # --- 훈련 루프 시작 ---
-    print(f"\n--- DFormer (v4 Deep Supervision) 융합 모델 검증 훈련 시작 ({EPOCHS} 에포크) ---")
     scaler = torch.amp.GradScaler('cuda')
     best_iou = -1.0
 
