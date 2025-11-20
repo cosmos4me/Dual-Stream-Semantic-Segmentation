@@ -1,37 +1,47 @@
 # DualStream-DFormer: Multi-Modal Semantic Segmentation
 
-**DualStream-DFormer**는 고해상도 위성 이미지(Vision)와 대기 오염 데이터(Air Quality)를 융합하여 정밀한 영역 분할(Semantic Segmentation)을 수행하는 하이브리드 딥러닝 모델입니다.
+**DualStream-DFormer** is a multi-modal segmentation framework designed to fuse high-resolution satellite imagery (Vision) with multi-spectral air quality data (GEMS/Sensors).
 
-서로 다른 해상도와 특성을 가진 이종 데이터를 효과적으로 결합하기 위해 **SegFormer**와 **ConvNeXt**를 기반으로 한 듀얼 스트림 구조를 채택하였으며, **FiLM**, **Gating**, **Cross-Attention** 메커니즘을 통해 특징을 단계별로 융합합니다.
+By leveraging an **asymmetric dual-stream encoder** and a **hierarchical fusion mechanism**
 
-## 🌟 Key Features
+## 🏆 Results (Epoch 40)
 
-* **Dual-Stream Architecture**:
-    * **Vision Stream**: `SegFormer-B1` (Pretrained)을 사용하여 시각적 특징 추출
-    * **Air Quality Stream**: Custom `ConvNeXt` Encoder를 사용하여 48채널 대기 데이터 처리
-* **Advanced Feature Fusion**:
-    * **Low-Level**: `FiLM (Feature-wise Linear Modulation)` + `Dynamic Fusion Gate`
-    * **High-Level**: `Cross-Attention Block` (Global Context Modeling)
-* **Robust Decoder Design**:
-    * **ASPP (Atrous Spatial Pyramid Pooling)**: 멀티 스케일 문맥 포착
-    * **Attention Gates**: Skip Connection 정보의 선택적 융합
-    * **ConvNeXt Refinement**: 디코딩 단계에서의 세밀한 특징 복원
-* **Loss Function Strategy**:
-    * **Hybrid Loss**: Focal Loss + Lovasz-Softmax Loss (Class Imbalance 해결)
-    * **Deep Supervision**: 중간 레이어(Auxiliary Heads)에서도 손실을 계산하여 학습 안정성 확보
-
-## 🏗️ Model Architecture
-
-| Stage | Interaction Method | Purpose |
+| Metric | Value | Description |
 | :--- | :--- | :--- |
-| **Encoder** | SegFormer (Vis) + ConvNeXt (Air) | 각각의 모달리티에서 계층적 특징 추출 |
-| **Stage 1-2** | **FiLM + Gating** | 채널별 특징 변조 및 지역적 정보 융합 |
-| **Stage 3-4** | **Cross-Attention** | 전역적 문맥 정보 교환 및 상호 연관성 학습 |
-| **Decoder** | **ASPP + Attention Gate** | 경계면 정제 및 해상도 복원 |
+| **mIoU** | **99.24%** | Mean Intersection over Union |
+| **Accuracy** | **99.37%** | Pixel-wise Accuracy |
+| **Val Loss** | 0.0171 | Final Validation Loss |
+| **Train Loss**| 0.0099 | Final Training Loss |
+
+## 📚 Dataset
+
+This project utilizes the **"Satellite Image-based Air Quality Analysis Data"** provided by **AI Hub**.
+* **Source:** [AI Hub - Land Cover & Air Quality Dataset](https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71805)
+* **Modalities:**
+    * **Vision:** High-resolution Satellite Imagery ($512 \times 512$)
+    * **Air:** GEMS Satellite Data + Ground Stations ($64 \times 64 \times 12*4$) (GEMS/NO2/SO2/CO2)
+
+## 🏗️ System Architecture
+
+The architecture addresses the resolution mismatch between vision and air quality data through a multi-stage fusion strategy.
+
+### 1. Asymmetric Dual-Stream Backbone
+* **Vision Stream (SegFormer-B1):** Captures hierarchical semantic features from RGB images.
+* **Air Stream (Custom ConvNeXt):** Processes high-dimensional (48-channel) environmental data.
+
+### 2. Hierarchical Feature Fusion
+* **Stage 1-2 (Local Fusion):** Utilizes **FiLM (Feature-wise Linear Modulation)** and **Dynamic Gating** to modulate visual features based on environmental embeddings.
+* **Stage 3-4 (Global Fusion):** Employs **Cross-Attention Blocks** to model long-range dependencies between visual queries and air quality keys/values.
+
+### 3. Decoder & Refinement
+Standard bilinear upsampling is insufficient for high-precision tasks. We implement a robust decoder:
+* **ASPP:** Aggregates multi-scale context.
+* **Attention Gates:** Filters skip connections to suppress noise.
+* **Learnable Upsampling:** Instead of simple interpolation, **ConvNeXt-based Refinement Blocks** are used at each upsampling stage to reconstruct fine boundaries.
 
 ## 📂 Directory Structure
 
-데이터셋은 `DualStreamDataset` 클래스에 맞춰 다음과 같은 구조로 구성되어야 합니다.
+Standardized data loader structure required for `DualStreamDataset`:
 
 ```plaintext
 /content/
@@ -47,7 +57,7 @@
 
 ## ⚙️ Configuration
 
-주요 하이퍼파라미터는 코드 최상단에서 설정 가능합니다.
+Key hyperparameters are defined in the main script:
 
 ```python
 LEARNING_RATE = 3.0e-4
@@ -61,68 +71,3 @@ FOCAL_WEIGHT = 0.5
 LOVASZ_WEIGHT = 0.5
 AUX_LOSS_WEIGHTS = {'final': 1.0, 'f2': 0.3, 'f3': 0.15}
 ```
-
-## 🚀 Usage
-
-### 1. Requirements
-
-필요한 라이브러리를 설치합니다.
-
-```bash
-pip install torch torchvision rasterio opencv-python transformers tqdm
-```
-
-### 2. Training
-
-모델 학습을 시작하는 기본 코드 예시입니다.
-
-```python
-from torch.utils.data import DataLoader
-import torch.optim as optim
-
-# 디바이스 설정
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# 데이터셋 및 로더
-train_dataset = DualStreamDataset(TR_IMG_DIR, TR_LAB_DIR, TR_AP_DIR, TR_GEMS_DIR)
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
-
-# 모델 초기화
-model = DualStream_DFormer_Model(num_classes=1).to(device)
-
-# 옵티마이저 및 스케일러
-optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-scaler = torch.cuda.amp.GradScaler()
-
-# 학습 루프
-model.train()
-for epoch in range(EPOCHS):
-    loss = train_one_epoch(model, train_loader, optimizer, scaler, device)
-    print(f"Epoch {epoch+1} Loss: {loss:.4f}")
-    
-    # 체크포인트 저장
-    if (epoch + 1) % 5 == 0:
-        torch.save(model.state_dict(), f"{CHECKPOINT}_ep{epoch+1}.pth")
-```
-
-### 3. Inference
-
-학습된 모델을 사용하여 추론을 수행합니다.
-
-```python
-model.eval()
-with torch.no_grad():
-    output = model(pixel_values=test_img, air_values=test_air)
-    logits = output['logits']
-    prediction = (torch.sigmoid(logits) > 0.5).long()
-```
-
-## 🧩 Technical Details
-
-### Loss Functions
-* **Focal Loss**: 데이터 불균형이 심한 세그멘테이션 작업에서 어려운 샘플(Hard negatives)에 더 큰 가중치를 부여합니다.
-* **Lovasz Loss**: IoU(Intersection over Union) 지표를 직접 최적화하도록 설계된 손실 함수입니다.
-
-### Data Preprocessing
-* **Vision**: 0~1 사이로 정규화 (Rescaling), 512x512 리사이즈.
-* **Air Quality**: GEMS 및 오염물질 데이터를 채널 방향으로 결합(Concatenate) 후 정규화, 64x64로 리사이즈.
