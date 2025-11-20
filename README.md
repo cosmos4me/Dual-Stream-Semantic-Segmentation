@@ -35,3 +35,29 @@ Clone the repository and install the required dependencies. It is recommended to
 
 ```bash
 pip install -r requirements.txt
+
+### 2. Data Preparation
+Organize your dataset directories. The model expects Satellite Images, Labels, Air Pollution Maps, and GEMS Data.
+
+Recommended structure:
+
+/data_root/
+├── ts_sn/   # Train Satellite Images
+├── tl_sn/   # Train Labels
+├── t_ap/    # Train Air Pollution (.tif)
+├── t_gems/  # Train GEMS (.tif)
+├── vs_sn/   # Validation Satellite Images
+├── vl_sn/   # Validation Labels
+└── ...
+
+3. Configuration
+Crucial Step: Open config.py and modify the paths to match your environment.
+
+Update Paths: Change TR_IMG_DIR, VL_IMG_DIR, CHECKPOINT_SAVE_PATH, etc.
+
+Hyperparameters: Adjust BATCH_SIZE, EPOCHS, and LEARNING_RATE if needed.
+
+4. Training
+Run the main training script. The code automatically manages the 2-stage training process (freezing encoders initially, then unfreezing).
+
+
